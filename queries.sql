@@ -93,27 +93,33 @@ order by to_char(sales.sale_date,'YYYY-MM');
 	суммирование количества умноженное на суммирование цены, выручка округляется через round до двуз цифр  после запятойб группировка и сортировка по дате.
 
 Отчёт 3.
-with prod as(
+with unique_cust as (
 	select
-		products.product_id,
-		price*quantity as sal
-	from products
-	inner join sales
-	on products.product_id=sales.product_id)
-select distinct on(customers.first_name, customers.last_name, employees.first_name, employees.last_name)
-	concat(customers.first_name, customers.last_name) as customer,
-	sale_date,
-	concat(employees.first_name, employees.last_name) as seller
-from sales	
-inner join customers
-on customers.customer_id=sales.customer_id 
-inner join employees
-on employee_id = sales_person_id
-inner join prod 
-on prod.product_id=sales.product_id 
-where prod.sal = 0;
-//в подзапросе расчитывается выручка умножением цены на количество по каждому продукту, далее в основном запросе с помощью distinct on выбираются уникальные покупатели
-	и продавцы, с помощью concat объединяются фамилии и имена покупателей и продавцов, с помощью inner join объединяются таблицы, с помощью where идет выборка покупателей, 
-	которые купили акционный товар и продавцы, которые продали акционный товар.
+		concat(c.first_name, c.last_name) as customer,
+		s.sale_date,
+		concat(e.first_name, e.last_name) as seller,
+		p.name as name,
+		p.price as price,
+		row_number () over (partition by concat(c.first_name, c.last_name) order by sale_date) as rn
+from sales s
+inner join customers c 
+on s.customer_id = c.customer_id
+inner join employees e 
+on s.sales_person_id = e.employee_id
+inner join products p 
+on s.product_id  = p.product_id
+order by sale_date
+)
+select 
+	customer, 
+	sale_date, 
+	seller
+from unique_cust
+where price = 0 and rn = 1
+order by customer;
+//в подзапросе с помощью функции concat объединябтся фамилии и имена покупателей и продавцрв, с помощь row_number нумеруются строки отдельно для каждой уникальной 
+	фамилии и уникального имени покупателя, сортируется по дате покупки, с помощью inner join объединяются таблицы, в основном запросе идёт выборка по цене 
+	равной нулю и row_number равной единице(так как сортировка идёт по дате).
+		
 
 
