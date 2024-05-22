@@ -22,26 +22,33 @@ limit 10;
 	который был продан, округление через ROUND; группировка по имени и фамилии через GROUP BY; 
 	сортировка по убыванию выручки через ORDER BY; вывод первых 10 строк через LIMIT.
 
-Отчёт 2.
+Отчёт 2.(Неправильно)
+with tab1 as(
+	select 
+		products.product_id, 
+		sales.quantity*price as income
+	from products 
+	inner join sales 
+	on products.product_id = sales.product_id
+	group by products.product_id, sales.quantity)
 select 
 	concat(employees.first_name, ' ', employees.last_name) as seller,
-	FLOOR(avg(products.price*sales.quantity)) as average_income
-from employees
-inner join sales 
+	FLOOR(avg(income)) as average_income
+from sales 
+inner join employees  
 on employee_id = sales_person_id
-inner join products 
-on products.product_id = sales.product_id
+inner join tab1 
+on tab1.product_id = sales.product_id
 group by concat(employees.first_name, ' ', employees.last_name)
-having FLOOR(avg(products.price*sales.quantity)) < (select 
-							avg(products.price*sales.quantity) 
-						    from sales 
-						    inner join products 
-						    on sales.product_id = products.product_id)
+having FLOOR(avg(income)) < (select 
+				   avg(income) 
+			     from tab1)
 order by average_income;
-//запрос, в котором происходит объединение трех таблиц employees, sales, producrs через INNER JOIN; подсчёт среней выручки по каждому продавцу 
-	через функцию AVG и округление через FLOOR; для сравнения со средней выручкой по всем продавцам был использован подзапрос в HAVING.
+//в подзапросе рассчитывается выручка по каждому продуктуб в основном запросе происходит объединение трех таблиц employees, sales, tab1 через INNER JOIN; подсчёт 
+	среней выручки по каждому продавцу через функцию AVG и округление через FLOOR; для сравнения со средней выручкой по всем продавцам был использован 
+	подзапрос в HAVING, сортировка по средней выручке.
 
-Отчёт 3.
+Отчёт 3.(Неправильно)
 select 
     concat(employees.first_name, ' ', employees.last_name) as seller,
     to_char(sale_date,'Day') as day_of_week,
@@ -80,7 +87,7 @@ order by age_category;
 //с помощью оператора WITH создаем временную таблицу, с помощью оператора CASE выводим возрастные категории, с помощью функции COUNT подсчитываем количество 
 	человек в каждой возрастной группе, далее в основном запросе считаем суммарное количество человек в каждой группе, группируем и сортируем по возрастной группе.
 
-Отчёт 2.
+Отчёт 2.(Неправильно)
 select
 	to_char(sales.sale_date,'YYYY-MM') as selling_month,
 	count(distinct(customer_id)) as total_customers,
@@ -98,9 +105,9 @@ order by to_char(sales.sale_date,'YYYY-MM');
 Отчёт 3.
 with unique_cust as (
 	select
-		concat(c.first_name, c.last_name) as customer,
+		concat(c.first_name, ' ', c.last_name) as customer,
 		s.sale_date,
-		concat(e.first_name, e.last_name) as seller,
+		concat(e.first_name, ' ', e.last_name) as seller,
 		p.name as name,
 		p.price as price,
 		row_number () over (partition by concat(c.first_name, ' ', c.last_name) order by sale_date) as rn
