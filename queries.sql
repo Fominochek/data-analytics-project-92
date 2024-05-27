@@ -22,51 +22,52 @@ limit 10;
 	который был продан, округление через ROUND; группировка по имени и фамилии через GROUP BY; 
 	сортировка по убыванию выручки через ORDER BY; вывод первых 10 строк через LIMIT.
 
-Отчёт 2.(Неправильно)
-with tab1 as(
-	select 
-		products.product_id, 
-		sales.quantity*price as income
-	from products 
-	inner join sales 
-	on products.product_id = sales.product_id
-	group by products.product_id, sales.quantity)
+Отчёт 2.
 select 
 	concat(employees.first_name, ' ', employees.last_name) as seller,
-	FLOOR(avg(income)) as average_income
+	FLOOR(avg(price*quantity)) as average_income
 from sales 
-inner join employees  
-on employee_id = sales_person_id
-inner join tab1 
-on tab1.product_id = sales.product_id
-group by concat(employees.first_name, ' ', employees.last_name)
-having FLOOR(avg(income)) < (select 
-				   avg(income) 
-			     from tab1)
-order by average_income;
-//в подзапросе рассчитывается выручка по каждому продуктуб в основном запросе происходит объединение трех таблиц employees, sales, tab1 через INNER JOIN; подсчёт 
-	среней выручки по каждому продавцу через функцию AVG и округление через FLOOR; для сравнения со средней выручкой по всем продавцам был использован 
-	подзапрос в HAVING, сортировка по средней выручке.
-
-Отчёт 3.(Неправильно)
-select 
-    concat(employees.first_name, ' ', employees.last_name) as seller,
-    to_char(sale_date,'Day') as day_of_week,
-    round(SUM(products.price*sales.quantity)) as income
-from employees
-inner join sales 
-on employee_id = sales_person_id
+inner join employees 
+on sales.sales_person_id = employees.employee_id 
 inner join products 
-on products.product_id = sales.product_id
-group by concat(employees.first_name, ' ', employees.last_name), 
-	 to_char(sale_date,'Day'), 
-	 sales.sale_date 
-order by extract(isodow from sale_date), 
-	 seller;
-//запрос, в котором происходит объединение трех таблиц employees, sales, producrs через INNER JOIN; извлечение и преобразование даты в день недели через 
-	функцию TO_CHAR; подсчет выручки через SUM и произведения цены и кол-ва товвара, который был продан, округление через ROUND; группировка через GROUP BY; 
-	сортировка через ORDER BY, чтобы сортировка была не в алфавитном порядке по дню недели, используется функция EXTRACT и параметр ISODOW, 
-	благодаря которому интервал от 1 (понедельник) до 7 (воскресенье).
+on sales.product_id = products.product_id
+group by concat(employees.first_name, ' ', employees.last_name)
+having FLOOR(avg(price*quantity)) < (select
+					avg(price*quantity)
+				     from sales 
+				     inner join products 
+				     on products.product_id = sales.product_id)
+order by FLOOR(avg(price*quantity));
+// объединение фамилии и имени через CONCAT, подсчёт среней выручки по каждому продавцу через функцию AVG и округление через FLOOR; для сравнения со средней 
+	выручкой по всем продавцам был использован подзапрос в HAVING, сортировка по средней выручке.
+
+Отчёт 3.
+with tab1 as (
+    select
+        concat(employees.first_name, ' ', employees.last_name) as seller,
+        to_char(sales.sale_date, 'day') as day_of_week,
+        floor(sum(price * quantity)) as income,
+        extract(isodow from sale_date) as day_number
+    from employees
+    inner join sales 
+    on employees.employee_id = sales.sales_person_id
+    inner join products
+    on sales.product_id = products.product_id
+    group by
+        concat(first_name, ' ', last_name),
+        to_char(sale_date, 'day'),
+        extract(isodow from sale_date)
+    order by day_number, seller
+)
+select
+    seller,
+    day_of_week,
+    income
+from tab1;
+//в подзапросе объединение фамилии и мени через CONCAT, извлечение и преобразование даты в день недели через функцию TO_CHAR; подсчет выручки через 
+	SUM и произведения цены и кол-ва товвара, который был продан, округление через FLOOR; группировка через GROUP BY; сортировка через ORDER BY, 
+	чтобы сортировка была не в алфавитном порядке по дню недели, используется функция EXTRACT и параметр ISODOW, благодаря которому интервал от 
+	1 (понедельник) до 7 (воскресенье).
 
 6.
 Отчёт 1.
@@ -89,18 +90,19 @@ order by age_category;
 
 Отчёт 2.(Неправильно)
 select
-	to_char(sales.sale_date,'YYYY-MM') as selling_month,
-	count(distinct(customer_id)) as total_customers,
-	round(sum(quantity*price)) as income
-from sales 
-inner join products 
-on sales.product_id=products.product_id 
-where price > 0
-group by to_char(sales.sale_date,'YYYY-MM'), products.price 
-order by to_char(sales.sale_date,'YYYY-MM');
+    to_char(sale_date, 'YYYY-MM') as selling_month,
+    count(distinct customers.customer_id) as total_customers,
+    floor(sum(quantity * price)) as income
+from sales
+inner join customers 
+on sales.customer_id = customers.customer_id
+inner join products
+on sales.product_id = products.product_id
+group by to_char(sale_date, 'YYYY-MM')
+order by selling_month;
 //преобразование даты в формат год-месяц с помощью функции to_char, подсчет уникальных покупателей с помощью count и distinct, подсчет выручки от покупателей через 
-	суммирование количества умноженное на суммирование цены, выручка округляется через round, объединение двух таблиц через inner join, убираем нулевые значения, 
-	через условие where, группировка и сортировка по дате.
+	суммирование количества умноженное на суммирование цены, выручка округляется через floor, объединение двух таблиц через inner join, группировка и 
+	сортировка по дате.
 
 Отчёт 3.
 with unique_cust as (
