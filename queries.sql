@@ -4,15 +4,16 @@ from customers;
 --запрос, который считает общее количество покупателей из таблицы customers.
 
 --5.Отчёт 1.
-select 
-	concat(employees.first_name, ' ', employees.last_name) as seller,
-	count(sales.sales_person_id) as operations,
-	floor(SUM(products.price*sales.quantity)) as income
+select
+    concat(employees.first_name, ' ', employees.last_name)
+    as seller,
+    count(sales.sales_person_id) as operations,
+    floor(sum(products.price * sales.quantity)) as income
 from employees
-inner join sales 
-on employee_id = sales_person_id
-inner join products 
-on products.product_id = sales.product_id
+inner join sales
+    on employees.employee_id = sales.sales_person_id
+inner join products
+    on sales.product_id = products.product_id
 group by concat(employees.first_name, ' ', employees.last_name)
 order by income desc
 limit 10;
@@ -22,21 +23,23 @@ limit 10;
 	сортировка по убыванию выручки через ORDER BY; вывод первых 10 строк через LIMIT.
 
 --Отчёт 2.
-select 
-	concat(employees.first_name, ' ', employees.last_name) as seller,
-	FLOOR(avg(price*quantity)) as average_income
-from sales 
-inner join employees 
-on sales.sales_person_id = employees.employee_id 
-inner join products 
-on sales.product_id = products.product_id
+select
+    concat(employees.first_name, ' ', employees.last_name) as seller,
+    floor(avg(products.price * sales.quantity)) as average_income
+from sales
+inner join employees
+    on sales.sales_person_id = employees.employee_id
+inner join products
+    on sales.product_id = products.product_id
 group by concat(employees.first_name, ' ', employees.last_name)
-having FLOOR(avg(price*quantity)) < (select
-					avg(price*quantity)
-				     from sales 
-				     inner join products 
-				     on products.product_id = sales.product_id)
-order by FLOOR(avg(price*quantity));
+having
+    floor(avg(products.price * sales.quantity)) < (
+        select avg(products.price * sales.quantity)
+        from sales
+        inner join products
+            on sales.product_id = products.product_id
+    )
+order by floor(avg(products.price * sales.quantity));
 --объединение фамилии и имени через CONCAT, подсчёт среней выручки по каждому продавцу через функцию AVG и округление через FLOOR; для сравнения со средней 
 	выручкой по всем продавцам был использован подзапрос в HAVING, сортировка по средней выручке.
 
@@ -45,19 +48,20 @@ with tab1 as (
     select
         concat(employees.first_name, ' ', employees.last_name) as seller,
         to_char(sales.sale_date, 'day') as day_of_week,
-        floor(sum(price * quantity)) as income,
-        extract(isodow from sale_date) as day_number
+        floor(sum(products.price * sales.quantity)) as income,
+        extract(isodow from sales.sale_date) as day_number
     from employees
-    inner join sales 
-    on employees.employee_id = sales.sales_person_id
+    inner join sales
+        on employees.employee_id = sales.sales_person_id
     inner join products
-    on sales.product_id = products.product_id
+        on sales.product_id = products.product_id
     group by
-        concat(first_name, ' ', last_name),
-        to_char(sale_date, 'day'),
-        extract(isodow from sale_date)
+        concat(employees.first_name, ' ', employees.last_name),
+        to_char(sales.sale_date, 'day'),
+        extract(isodow from sales.sale_date)
     order by day_number, seller
 )
+
 select
     seller,
     day_of_week,
@@ -69,17 +73,21 @@ from tab1;
 	1 (понедельник) до 7 (воскресенье).
 
 --6.Отчёт 1.
-with tab1 as(
-	select 
-		case when age between 16 and 25 then '16-25'
-    		 when age between 26 and 40 then '26-40'
-    		 when age>40 then '40+' end as age_category,
-    		 count(age) as count
-	from customers
-	group by age)
+with tab1 as (
+    select
+        case
+            when age between 16 and 25 then '16-25'
+            when age between 26 and 40 then '26-40'
+            when age > 40 then '40+'
+        end as age_category,
+        count(age) as count
+    from customers
+    group by age
+)
+
 select
-	age_category,
-	sum(count) as age_count
+    age_category,
+    sum(count) as age_count
 from tab1
 group by age_category
 order by age_category;
@@ -88,15 +96,15 @@ order by age_category;
 
 --Отчёт 2.
 select
-    to_char(sale_date, 'YYYY-MM') as selling_month,
+    to_char(sales.sale_date, 'YYYY-MM') as selling_month,
     count(distinct customers.customer_id) as total_customers,
-    floor(sum(quantity * price)) as income
+    floor(sum(sales.quantity * products.price)) as income
 from sales
-inner join customers 
-on sales.customer_id = customers.customer_id
+inner join customers
+    on sales.customer_id = customers.customer_id
 inner join products
-on sales.product_id = products.product_id
-group by to_char(sale_date, 'YYYY-MM')
+    on sales.product_id = products.product_id
+group by to_char(sales.sale_date, 'YYYY-MM')
 order by selling_month;
 --преобразование даты в формат год-месяц с помощью функции to_char, подсчет уникальных покупателей с помощью count и distinct, подсчет выручки от покупателей через 
 	суммирование количества умноженное на суммирование цены, выручка округляется через floor, объединение двух таблиц через inner join, группировка и 
@@ -104,26 +112,32 @@ order by selling_month;
 
 --Отчёт 3.
 with unique_cust as (
-	select
-		concat(c.first_name, ' ', c.last_name) as customer,
-		s.sale_date,
-		concat(e.first_name, ' ', e.last_name) as seller,
-		p.name as name,
-		p.price as price,
-		row_number () over (partition by concat(c.first_name, ' ', c.last_name) order by sale_date) as rn
-from sales s
-inner join customers c 
-on s.customer_id = c.customer_id
-inner join employees e 
-on s.sales_person_id = e.employee_id
-inner join products p 
-on s.product_id  = p.product_id
-order by sale_date
+    select
+        s.sale_date,
+        p.name,
+        p.price,
+        concat(c.first_name, ' ', c.last_name) as customer,
+        concat(e.first_name, ' ', e.last_name) as seller,
+        row_number()
+            over (
+                partition by concat(c.first_name, ' ', c.last_name)
+                order by s.sale_date
+            )
+        as rn
+    from sales as s
+    inner join customers as c
+        on s.customer_id = c.customer_id
+    inner join employees as e
+        on s.sales_person_id = e.employee_id
+    inner join products as p
+        on s.product_id = p.product_id
+    order by s.sale_date
 )
-select 
-	customer, 
-	sale_date, 
-	seller
+
+select
+    customer,
+    sale_date,
+    seller
 from unique_cust
 where price = 0 and rn = 1
 order by customer;
