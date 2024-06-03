@@ -5,7 +5,7 @@ from customers;
 
 --5.Отчёт 1.
 select
-    concat(employees.first_name, ' ', employees.last_name)
+    CONCAT(employees.first_name, ' ', employees.last_name)
     as seller,
     count(sales.sales_person_id) as operations,
     floor(sum(products.price * sales.quantity)) as income
@@ -170,6 +170,3 @@ order by customer;
 --в основном запросе идёт выборка по цене 
 --равной нулю и row_number равной 
 --единице(так как сортировка идёт по дате).
-		
-
-
